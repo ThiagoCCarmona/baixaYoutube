@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  testar-e-empacotar:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements-build.txt
+
+      - name: Instalar dependências
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          python -m pip install -r requirements-build.txt
+          python -m pip install -e . --no-deps
+
+      - name: Testes
+        run: python -m pytest -q
+
+      - name: Instalar Inno Setup
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup -y --no-progress
+          }
+
+      - name: Gerar executável e instalador
+        run: .\build.ps1
+
+      - name: Verificar o executável (offline)
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $p = Start-Process dist\BaixaYoutube\BaixaYoutube.exe -ArgumentList "--verificar", "verificar.txt" -Wait -PassThru
+          Get-Content verificar.txt
+          if ($p.ExitCode -ne 0) { throw "Verificação do executável falhou" }
+
+      # O YouTube costuma bloquear IPs de datacenter: esta etapa é informativa.
+      - name: Autoteste com download real (informativo)
+        continue-on-error: true
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $p = Start-Process dist\BaixaYoutube\BaixaYoutube.exe -ArgumentList "--autoteste", "autoteste" -Wait -PassThru
+          Get-Content autoteste\autoteste.txt
+          if ($p.ExitCode -ne 0) { throw "Autoteste falhou" }

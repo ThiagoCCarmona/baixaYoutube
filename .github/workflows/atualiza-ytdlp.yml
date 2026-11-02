@@ -1,0 +1,61 @@
+name: Atualiza yt-dlp
+
+# Todo dia confere se saiu yt-dlp novo. Se saiu: fixa a versão, incrementa o patch do app,
+# roda os testes, cria a tag e publica o release — os apps instalados se atualizam sozinhos.
+on:
+  schedule:
+    - cron: "17 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: atualiza-ytdlp
+  cancel-in-progress: false
+
+jobs:
+  verificar:
+    runs-on: windows-latest
+    outputs:
+      tag: ${{ steps.atualizar.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Atualizar se houver versão nova
+        id: atualizar
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $fixado = python scripts/versao.py ytdlp-fixado
+          $ultimo = (Invoke-RestMethod https://pypi.org/pypi/yt-dlp/json).info.version
+          "Fixado: $fixado | PyPI: $ultimo"
+          if ($ultimo -eq $fixado) { "Nada a fazer."; exit 0 }
+
+          python scripts/versao.py fixar-ytdlp $ultimo
+          $versao = python scripts/versao.py patch
+
+          python -m pip install -r requirements-build.txt
+          python -m pip install -e . --no-deps
+          python -m pytest -q
+          if ($LASTEXITCODE) { throw "Testes falharam com yt-dlp $ultimo" }
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Atualiza yt-dlp para $ultimo (v$versao)"
+          git tag "v$versao"
+          git push origin HEAD:main "v$versao"
+          "tag=v$versao" >> $env:GITHUB_OUTPUT
+
+  # Tags criadas com o GITHUB_TOKEN não disparam outros workflows; por isso o release é chamado aqui.
+  release:
+    needs: verificar
+    if: needs.verificar.outputs.tag != ''
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.verificar.outputs.tag }}
+    permissions:
+      contents: write

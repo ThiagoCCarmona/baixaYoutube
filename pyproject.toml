@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "baixa"
+dynamic = ["version"]
+description = "Baixa vídeos do YouTube em MP3 ou MP4 pelo terminal ou pela interface gráfica"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+dependencies = [
+    "yt-dlp[default]",
+    "imageio-ffmpeg",
+    "customtkinter",
+]
+
+[project.optional-dependencies]
+dev = ["pyinstaller", "pytest"]
+
+[project.scripts]
+baixa = "baixa.cli:main"
+
+[project.gui-scripts]
+baixa-gui = "baixa.gui:main"
+
+[tool.setuptools]
+packages = ["baixa"]
+
+[tool.setuptools.dynamic]
+version = { attr = "baixa.__version__" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["rede: testes que acessam a internet (YouTube/PyPI)"]
+addopts = "-m 'not rede'"
