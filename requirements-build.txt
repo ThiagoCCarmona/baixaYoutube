@@ -1,7 +1,7 @@
 # Versões exatas usadas para gerar o executável (builds reproduzíveis).
 # A linha do yt-dlp é atualizada automaticamente pelo workflow "atualiza-ytdlp".
 # O extra "pin" fixa também as dependências do yt-dlp nas versões testadas por ele.
-yt-dlp[default,pin]==2026.10.26
+yt-dlp[default,pin]==2026.11.23
 imageio-ffmpeg==0.6.0
 customtkinter==6.0.0
 pyinstaller==6.22.3
